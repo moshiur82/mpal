@@ -1,0 +1,11 @@
+admin@mpal.com) এবং পাসওয়ার্ড (moshiur)
+
+receiver@mpal.com
+receiver123
+
+tocken:
+
+{
+  "refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc5MDA1ODM4NSwiaWF0IjoxNzg5OTcxOTg1LCJqdGkiOiI1N2M5NTEwNjQ5NTQ0MjUzYjJiYmQxNjAwMDE4YzZlNiIsInVzZXJfaWQiOiIxIn0.tcQQqE0iT3x1_aZ9jIM-Xr4u4M0NC22nlWZGzGUgwQU",
+  "access": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzg5OTcyMjg1LCJpYXQiOjE3ODk5NzE5ODUsImp0aSI6IjA3ODgyMzhhNjY5ZTQxMDA4N2RjZDE5MjY4ZTAyNzFlIiwidXNlcl9pZCI6IjEifQ.3Rc7KQJ0plgjDmqAQP2qP3WhuNSMbjYKgiAlb4lMt0U"
+}

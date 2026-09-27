@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+body {
+  @apply bg-white text-slate-900 antialiased;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}

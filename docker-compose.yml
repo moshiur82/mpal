@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # ১. Database Service (PostgreSQL)
+  db:
+    image: postgres:16
+    container_name: mpal_db
+    restart: always
+    environment:
+      POSTGRES_DB: mpal_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: your_secure_password # আপনার .env এর পাসওয়ার্ডের সাথে মিল রাখুন
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  # ২. Backend Service (Django)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mpal_backend
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_NAME=mpal_db
+      - DB_USER=postgres
+      - DB_PASSWORD=your_secure_password # আপনার .env এর পাসওয়ার্ডের সাথে মিল রাখুন
+      - DB_HOST=db
+      - DB_PORT=5432
+    depends_on:
+      - db
+
+  # ৩. Frontend Service (React/Vite)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: mpal_frontend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
