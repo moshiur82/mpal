@@ -3,14 +3,29 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
-from .models import Transaction, Wallet
-from .serializers import TransactionSerializer
-from ai_engine.predictor import FraudPredictor
+from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.core.exceptions import ValidationError
+from django.shortcuts import get_object_or_404
 from decimal import Decimal
 import numpy as np
 import pandas as pd
+
+from .models import Transaction, Wallet, PaymentLink, Invoice
+from .serializers import TransactionSerializer, PaymentLinkSerializer, InvoiceSerializer
+from ai_engine.predictor import FraudPredictor
+
+
+class PaymentLinkViewSet(viewsets.ModelViewSet):
+    queryset = PaymentLink.objects.all()
+    serializer_class = PaymentLinkSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return self.queryset.filter(merchant=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(merchant=self.request.user)
 
 
 class UserWalletView(APIView):
@@ -25,6 +40,23 @@ class UserWalletView(APIView):
             }, status=status.HTTP_200_OK)
         except Wallet.DoesNotExist:
             return Response({"error": "Wallet not found"}, status=status.HTTP_404_NOT_FOUND)
+
+
+class UserWalletDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, email):
+        try:
+            user = get_object_or_404(get_user_model(), email=email)
+            wallet = user.wallet
+            return Response({
+                "email": user.email,
+                "username": user.username,
+                "wallet_id": wallet.id,
+                "balance": float(wallet.balance)
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_404_NOT_FOUND)
 
 
 class TransactionViewSet(viewsets.ModelViewSet):
@@ -45,13 +77,11 @@ class TransactionViewSet(viewsets.ModelViewSet):
             user_wallet = request.user.wallet
 
             with transaction.atomic():
-                # ১. ব্যালেন্স আপডেট
                 user_wallet.balance += amount
                 user_wallet.save()
 
-                # ২. ট্রানজ্যাকশন রেকর্ড তৈরি
                 Transaction.objects.create(
-                    sender=None,  # মডেলে sender null=True থাকতে হবে
+                    sender=None,
                     receiver=user_wallet,
                     amount=amount,
                     transaction_type='DEPOSIT',
@@ -77,20 +107,17 @@ class TransactionViewSet(viewsets.ModelViewSet):
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         try:
-            # ১. রিকোয়েস্ট থেকে ডাটা সংগ্রহ
             receiver_wallet_id = request.data.get('receiver_wallet_id')
             raw_amount = request.data.get('amount')
             description = request.data.get('description', '')
             transaction_type = request.data.get('transaction_type')
 
-            # ২. প্রাথমিক ভ্যালিডেশন
             if not receiver_wallet_id or not raw_amount or not transaction_type:
                 return Response(
                     {"error": "receiver_wallet_id, amount, and transaction_type are required."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # ৩. ডাটা টাইপ কনভার্ট
             amount = Decimal(str(raw_amount))
             sender_wallet = request.user.wallet
             receiver_wallet = Wallet.objects.get(id=receiver_wallet_id)
@@ -101,7 +128,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # ৪. AI Prediction
+            # AI Prediction
             predictor = FraudPredictor()
 
             input_dict = {
@@ -120,7 +147,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
             input_df = pd.DataFrame([input_dict])[predictor.features]
             is_fraud = predictor.model.predict(input_df)[0]
 
-            # ৫. ডাটাবেস আপডেট
+            # Balance update
             sender_wallet.balance -= amount
             sender_wallet.save()
 
@@ -130,13 +157,15 @@ class TransactionViewSet(viewsets.ModelViewSet):
             if is_fraud:
                 description = f"[⚠️ FRAUD DETECTED] {description}"
 
-            # ৬. ট্রানজ্যাকশন রেকর্ড
+            # Transaction record
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
 
             serializer.save(
                 sender=sender_wallet,
                 receiver=receiver_wallet,
+                amount=amount,
+                transaction_type=transaction_type,
                 description=description,
                 is_fraud=bool(is_fraud)
             )
@@ -163,3 +192,15 @@ class TransactionViewSet(viewsets.ModelViewSet):
                 {"error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class InvoiceViewSet(viewsets.ModelViewSet):
+    queryset = Invoice.objects.all()
+    serializer_class = InvoiceSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return self.queryset.filter(merchant=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(merchant=self.request.user)

@@ -1,11 +1,24 @@
-import { Outlet, Link } from 'react-router-dom';
-import { LayoutDashboard, Wallet, CreditCard, Settings, LogOut } from 'lucide-react';
+import { Outlet, Link, useNavigate } from 'react-router-dom';
+import {
+  LayoutDashboard,
+  Wallet,
+  CreditCard,
+  Settings,
+  LogOut,
+  Briefcase,
+  FileText,
+} from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
-interface DashboardLayoutProps {
-  onLogout: () => void;
-}
+const DashboardLayout = () => {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
 
-const DashboardLayout = ({ onLogout }: DashboardLayoutProps) => {
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
+
   return (
     <div className="min-h-screen flex">
       {/* SIDEBAR */}
@@ -25,21 +38,33 @@ const DashboardLayout = ({ onLogout }: DashboardLayoutProps) => {
             <Wallet size={20} /> Wallet
           </Link>
           <Link
-            to="/payments"
+            to="/transactions"
             className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-900 rounded-xl"
           >
-            <CreditCard size={20} /> Payments
+            <CreditCard size={20} /> Transactions
           </Link>
           <Link
-            to="/settings"
+            to="/invoices"
             className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-900 rounded-xl"
           >
-            <Settings size={20} /> Settings
+            <FileText size={20} /> Invoices
+          </Link>
+          <Link
+            to="/business"
+            className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-900 rounded-xl"
+          >
+            <Briefcase size={20} /> Business
+          </Link>
+          <Link
+            to="/profile"
+            className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-900 rounded-xl"
+          >
+            <Settings size={20} /> Profile
           </Link>
         </nav>
         <div className="p-4 border-t border-slate-100">
           <button
-            onClick={onLogout}
+            onClick={handleLogout}
             className="flex items-center gap-3 px-4 py-3 w-full text-sm text-slate-500 hover:text-slate-900 transition-all"
           >
             <LogOut size={18} /> Logout

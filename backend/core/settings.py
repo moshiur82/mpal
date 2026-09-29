@@ -14,6 +14,7 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -157,10 +158,30 @@ AUTH_USER_MODEL = 'users.User'
 
 from datetime import timedelta
 
+# ═══════════════════════════════════════════════════════════
+# JWT Configuration
+# ═══════════════════════════════════════════════════════════
+if DEBUG:
+    # Development — দীর্ঘ lifetime যাতে বারবার login করতে না হয়
+    ACCESS_LIFETIME = timedelta(days=7)
+    REFRESH_LIFETIME = timedelta(days=30)
+else:
+    # Production — নিরাপদ short lifetime + rotation
+    ACCESS_LIFETIME = timedelta(minutes=15)
+    REFRESH_LIFETIME = timedelta(days=7)
+
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(hours=12),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
-    'ROTATE_REFRESH_TOKENS': False,
-    'BLACKLIST_AFTER_ROTATION': False,
+    'ACCESS_TOKEN_LIFETIME': ACCESS_LIFETIME,
+    'REFRESH_TOKEN_LIFETIME': REFRESH_LIFETIME,
+    'ROTATE_REFRESH_TOKENS': True,          # প্রতিবার refresh এ নতুন refresh token
+    'BLACKLIST_AFTER_ROTATION': False,      # SimpleJWT blacklist app ছাড়া False
+    'UPDATE_LAST_LOGIN': True,
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
     'AUTH_HEADER_TYPES': ('Bearer',),
+    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+    'TOKEN_OBTAIN_SERIALIZER': 'users.serializers.EmailTokenObtainPairSerializer',
+    'TOKEN_REFRESH_SERIALIZER': 'rest_framework_simplejwt.serializers.TokenRefreshSerializer',
 }

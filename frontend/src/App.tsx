@@ -1,70 +1,49 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import DashboardLayout from './layouts/DashboardLayout';
 import LoginView from './pages/LoginView';
 import Overview from './pages/Overview';
 import Wallet from './pages/Wallet';
 import Transactions from './pages/Transactions';
+import Profile from './pages/Profile';
+import Invoices from './pages/Invoices';
+import BusinessDashboard from './pages/BusinessDashboard';
 
-function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [isChecking, setIsChecking] = useState<boolean>(true);
+const ProtectedRoute = () => {
+  const { isAuthenticated, isLoading } = useAuth();
 
-  const handleLogout = () => {
-    localStorage.removeItem('access_token');
-    setIsAuthenticated(false);
-  };
-
-  useEffect(() => {
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      setIsAuthenticated(true);
-    }
-    setIsChecking(false);
-  }, []);
-
-  if (isChecking) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
+  return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />;
+};
+
+function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        {/* Public Route */}
-        <Route
-          path="/login"
-          element={
-            !isAuthenticated ? (
-              <LoginView onLogin={() => setIsAuthenticated(true)} />
-            ) : (
-              <Navigate to="/" />
-            )
-          }
-        />
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<LoginView />} />
 
-        {/* Protected Routes */}
-        <Route
-          path="/"
-          element={
-            isAuthenticated ? (
-              <DashboardLayout onLogout={handleLogout} />
-            ) : (
-              <Navigate to="/login" />
-            )
-          }
-        >
-          <Route index element={<Overview />} />
-          <Route path="wallet" element={<Wallet />} />
-          <Route path="transactions" element={<Transactions />} />
-        </Route>
+          <Route element={<ProtectedRoute />}>
+            <Route path="/" element={<DashboardLayout />}>
+              <Route index element={<Overview />} />
+              <Route path="wallet" element={<Wallet />} />
+              <Route path="transactions" element={<Transactions />} />
+              <Route path="profile" element={<Profile />} />
+              <Route path="business" element={<BusinessDashboard />} />
+              <Route path="invoices" element={<Invoices />} />
+            </Route>
+          </Route>
 
-        {/* Catch all */}
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

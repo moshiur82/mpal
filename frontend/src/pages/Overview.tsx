@@ -1,127 +1,127 @@
 import { useEffect, useState } from 'react';
-import { ArrowUpRight, ArrowDownRight, Wallet, Activity, ShieldCheck, DollarSign, Loader2 } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { motion } from 'framer-motion';
+import { ArrowUpRight, ArrowDownRight, TrendingUp, Wallet as WalletIcon, CreditCard } from 'lucide-react';
+import api from '../api/axios';
+
+interface WalletData {
+  balance: number;
+  updated_at: string;
+}
 
 interface Transaction {
   id: number;
-  amount: number | string;
+  amount: number;
   description: string;
   transaction_type: 'DEPOSIT' | 'WITHDRAW' | 'TRANSFER';
-  category: string;
   created_at: string;
 }
 
 const Overview = () => {
+  const [wallet, setWallet] = useState<WalletData | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchTransactions = async () => {
-      const token = localStorage.getItem('access_token');
+    const fetchData = async () => {
       try {
-        const response = await fetch('http://127.0.0.1:8000/api/transactions/', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Failed to fetch');
-        setTransactions(data);
-        setLoading(false);
+        const [walletRes, txRes] = await Promise.all([
+          api.get('/wallet/'),
+          api.get('/transactions/'),
+        ]);
+        setWallet(walletRes.data);
+        setTransactions(txRes.data.slice(0, 5));
       } catch (err: any) {
-        setError(err.message);
+        console.error('Overview fetch error:', err);
+        setError(err.response?.data?.detail || 'Failed to load data');
+      } finally {
         setLoading(false);
       }
     };
-    fetchTransactions();
+    fetchData();
   }, []);
-
-  const getDirection = (type: string) => (type === 'DEPOSIT' ? 'INCOME' : 'EXPENSE');
-
-  const totalBalance = transactions.reduce((acc, curr) => {
-    const amt = parseFloat(curr.amount.toString());
-    return getDirection(curr.transaction_type) === 'INCOME' ? acc + amt : acc - amt;
-  }, 0);
-
-  const monthlyIncome = transactions
-    .filter((t) => getDirection(t.transaction_type) === 'INCOME')
-    .reduce((acc, curr) => acc + parseFloat(curr.amount.toString()), 0);
-
-  const totalExpenses = transactions
-    .filter((t) => getDirection(t.transaction_type) === 'EXPENSE')
-    .reduce((acc, curr) => acc + parseFloat(curr.amount.toString()), 0);
-
-  const chartData = transactions
-    .filter((t) => getDirection(t.transaction_type) === 'INCOME')
-    .reduce((acc: any[], curr) => {
-      const date = new Date(curr.created_at);
-      const monthName = date.toLocaleString('default', { month: 'short' });
-      const monthKey = `${date.getFullYear()}-${date.getMonth() + 1}`;
-      const existing = acc.find((item) => item.key === monthKey);
-      if (existing) {
-        existing.amount += parseFloat(curr.amount.toString());
-      } else {
-        acc.push({ name: monthName, amount: parseFloat(curr.amount.toString()), key: monthKey });
-      }
-      return acc;
-    }, [])
-    .sort((a, b) => a.key.localeCompare(b.key));
 
   if (loading) {
     return (
       <div className="min-h-[400px] flex items-center justify-center">
-        <Loader2 className="animate-spin text-blue-600" size={40} />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-[400px] flex items-center justify-center text-rose-600">
-        {error}
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-slate-900">Financial Overview</h1>
+      <div>
+        <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">Overview</h1>
+        <p className="text-sm text-slate-500">Welcome back! Here's your financial summary.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Total Balance" value={`$${totalBalance.toLocaleString()}`} icon={Wallet} isPositive={true} />
-        <StatCard title="Monthly Income" value={`$${monthlyIncome.toLocaleString()}`} icon={DollarSign} isPositive={true} />
-        <StatCard title="Total Expenses" value={`$${totalExpenses.toLocaleString()}`} icon={Activity} isPositive={false} />
-        <StatCard title="AI Risk Score" value="Low" icon={ShieldCheck} isPositive={true} />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white p-6 rounded-[28px] border border-slate-100 shadow-apple">
-          <h3 className="text-lg font-semibold mb-6">Revenue Trend</h3>
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                <YAxis axisLine={false} tickLine={false} />
-                <Tooltip />
-                <Area type="monotone" dataKey="amount" stroke="#0071e3" fillOpacity={1} fill="url(#colorAmount)" />
-                <defs>
-                  <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#0071e3" stopOpacity={0.3} />
-                    <stop offset="100%" stopColor="#0071e3" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+      {error && (
+        <div className="p-4 bg-red-50 text-red-600 rounded-xl text-sm border border-red-100">
+          {error}
         </div>
+      )}
 
-        <div className="bg-white p-6 rounded-[28px] border border-slate-100 shadow-apple">
-          <h3 className="text-lg font-semibold mb-6">Recent Transactions</h3>
-          <div className="space-y-6">
-            {transactions.slice(0, 5).map((t) => (
-              <div key={t.id} className="flex items-center justify-between">
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-apple"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-2 bg-blue-50 rounded-xl">
+              <WalletIcon size={20} className="text-blue-600" />
+            </div>
+          </div>
+          <p className="text-sm text-slate-500 mb-1">Total Balance</p>
+          <h3 className="text-2xl font-semibold text-slate-900">
+            ${wallet?.balance?.toLocaleString() || '0.00'}
+          </h3>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-apple"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-2 bg-emerald-50 rounded-xl">
+              <TrendingUp size={20} className="text-emerald-600" />
+            </div>
+          </div>
+          <p className="text-sm text-slate-500 mb-1">Total Transactions</p>
+          <h3 className="text-2xl font-semibold text-slate-900">{transactions.length}</h3>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-apple"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-2 bg-purple-50 rounded-xl">
+              <CreditCard size={20} className="text-purple-600" />
+            </div>
+          </div>
+          <p className="text-sm text-slate-500 mb-1">Account Status</p>
+          <h3 className="text-2xl font-semibold text-slate-900">Active</h3>
+        </motion.div>
+      </div>
+
+      {/* Recent Transactions */}
+      <div className="bg-white rounded-[32px] border border-slate-100 shadow-apple overflow-hidden">
+        <div className="p-6 border-b border-slate-50">
+          <h3 className="text-lg font-semibold text-slate-900">Recent Transactions</h3>
+        </div>
+        <div className="divide-y divide-slate-50">
+          {transactions.length === 0 ? (
+            <div className="p-12 text-center text-slate-500">No transactions yet.</div>
+          ) : (
+            transactions.map((t) => (
+              <div key={t.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
                 <div className="flex items-center gap-3">
                   <div
                     className={`p-2 rounded-lg ${
@@ -137,49 +137,29 @@ const Overview = () => {
                     )}
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-slate-900">{t.description}</p>
-                    <p className="text-xs text-slate-500">{t.category}</p>
+                    <p className="text-sm font-medium text-slate-900">
+                      {t.description || 'Transaction'}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {new Date(t.created_at).toLocaleDateString()}
+                    </p>
                   </div>
                 </div>
-                <span
-                  className={`text-sm font-semibold ${
+                <p
+                  className={`text-sm font-bold ${
                     t.transaction_type === 'DEPOSIT' ? 'text-emerald-600' : 'text-rose-600'
                   }`}
                 >
                   {t.transaction_type === 'DEPOSIT' ? '+' : '-'}$
                   {parseFloat(t.amount.toString()).toLocaleString()}
-                </span>
+                </p>
               </div>
-            ))}
-          </div>
+            ))
+          )}
         </div>
       </div>
     </div>
   );
 };
-
-interface StatCardProps {
-  title: string;
-  value: string;
-  icon: React.ElementType;
-  isPositive?: boolean;
-}
-
-const StatCard = ({ title, value, icon: Icon, isPositive }: StatCardProps) => (
-  <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-apple">
-    <div className="flex items-center justify-between mb-4">
-      <div className="p-2 bg-slate-50 rounded-xl">
-        <Icon size={24} className="text-slate-900" />
-      </div>
-      {isPositive !== undefined && (
-        <span className={`text-xs font-medium ${isPositive ? 'text-emerald-600' : 'text-rose-600'}`}>
-          {isPositive ? '↑' : '↓'}
-        </span>
-      )}
-    </div>
-    <p className="text-sm text-slate-500">{title}</p>
-    <h3 className="text-2xl font-semibold text-slate-900">{value}</h3>
-  </div>
-);
 
 export default Overview;

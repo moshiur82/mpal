@@ -1,53 +1,64 @@
-version: '3.8'
+version: '3.9'
 
 services:
-  # ১. Database Service (PostgreSQL)
   db:
-    image: postgres:16
+    image: postgres:16-alpine
     container_name: mpal_db
-    restart: always
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: mpal_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: your_secure_password # আপনার .env এর পাসওয়ার্ডের সাথে মিল রাখুন
+      POSTGRES_DB: ${DB_NAME:-mpal_db}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-mpal_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
-  # ২. Backend Service (Django)
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: mpal_backend
-    command: python manage.py runserver 0.0.0.0:8000
+    restart: unless-stopped
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
     volumes:
       - ./backend:/app
     ports:
       - "8000:8000"
+    env_file:
+      - ./backend/.env
     environment:
-      - DB_NAME=mpal_db
-      - DB_USER=postgres
-      - DB_PASSWORD=your_secure_password # আপনার .env এর পাসওয়ার্ডের সাথে মিল রাখুন
       - DB_HOST=db
       - DB_PORT=5432
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
-  # ৩. Frontend Service (React/Vite)
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      target: development
     container_name: mpal_frontend
+    restart: unless-stopped
     volumes:
       - ./frontend:/app
       - /app/node_modules
     ports:
       - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000/api
     depends_on:
       - backend
 
 volumes:
   postgres_data:
+    driver: local

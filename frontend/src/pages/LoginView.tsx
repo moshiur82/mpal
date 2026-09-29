@@ -1,34 +1,39 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { LogIn, Loader2 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
-interface LoginViewProps {
-  onLogin: () => void;
-}
+const LoginView = () => {
+  const { login, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
 
-const LoginView = ({ onLogin }: LoginViewProps) => {
-  const [authLoading, setAuthLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Already logged in → dashboard এ পাঠান
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
     setAuthLoading(true);
     setError(null);
+
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/token/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (!response.ok) throw new Error('Invalid credentials');
-
-      const data = await response.json();
-      localStorage.setItem('access_token', data.access);
-      onLogin();
+      await login(email, password);
+      navigate('/', { replace: true });
     } catch (err: any) {
-      setError(err.message);
+      const msg =
+        err.response?.data?.detail ||
+        err.response?.data?.non_field_errors?.[0] ||
+        err.message ||
+        'Login failed. Please try again.';
+      setError(msg);
     } finally {
       setAuthLoading(false);
     }
@@ -57,8 +62,9 @@ const LoginView = ({ onLogin }: LoginViewProps) => {
           />
           {error && <p className="text-red-500 text-xs">{error}</p>}
           <button
+            type="submit"
             disabled={authLoading}
-            className="w-full flex items-center justify-center gap-2 bg-slate-900 text-white py-3 rounded-xl font-medium hover:bg-slate-800 transition-all"
+            className="w-full flex items-center justify-center gap-2 bg-slate-900 text-white py-3 rounded-xl font-medium hover:bg-slate-800 transition-all disabled:opacity-50"
           >
             {authLoading ? (
               <Loader2 className="animate-spin" size={18} />

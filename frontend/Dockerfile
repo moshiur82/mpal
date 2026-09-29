@@ -1,21 +1,40 @@
-# ১. Node.js ইমেজ ব্যবহার করা হচ্ছে
-FROM node:20-slim
+# ═══════════════════════════════════════════════════════════
+# STAGE 1: Development
+# ═══════════════════════════════════════════════════════════
+FROM node:20-alpine AS development
 
-# ২. কাজের ডিরেক্টরি সেট করা
 WORKDIR /app
 
-# ৩. ডিপেন্ডেন্সি ফাইল কপি করা এবং ইন্সটল করা
 COPY package*.json ./
 RUN npm install
 
-# ৪. প্রজেক্টের ফাইল কপি করা
 COPY . .
 
-# ৫. Vite অ্যাপটি বিল্ড করা এবং সার্ভ করা
-RUN npm run build
-
-# ৬. পোর্ট এক্সপোজ করা
 EXPOSE 5173
 
-# ৭. সার্ভার রান করা (Vite dev mode ব্যবহার করছি যাতে দ্রুত কাজ করে)
-CMD ["npm", "run", "dev", "--", "--host"]
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+
+# ═══════════════════════════════════════════════════════════
+# STAGE 2: Build
+# ═══════════════════════════════════════════════════════════
+FROM node:20-alpine AS build
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci
+
+COPY . .
+RUN npm run build
+
+# ═══════════════════════════════════════════════════════════
+# STAGE 3: Production (nginx)
+# ═══════════════════════════════════════════════════════════
+FROM nginx:alpine AS production
+
+COPY --from=build /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]
