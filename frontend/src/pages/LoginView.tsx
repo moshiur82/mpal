@@ -1,81 +1,97 @@
-import { useState, type FormEvent, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { LogIn, Loader2 } from 'lucide-react';
+import { useState, type FormEvent } from 'react';
+import { motion } from 'framer-motion';
+import { Mail, Lock, Loader2, AlertCircle, LogIn } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const LoginView = () => {
-  const { login, isAuthenticated } = useAuth();
-  const navigate = useNavigate();
-
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [authLoading, setAuthLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Already logged in → dashboard এ পাঠান
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/', { replace: true });
-    }
-  }, [isAuthenticated, navigate]);
+  const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
-    setAuthLoading(true);
+    setLoading(true);
     setError(null);
-
     try {
       await login(email, password);
-      navigate('/', { replace: true });
+      navigate('/dashboard');
     } catch (err: any) {
-      const msg =
-        err.response?.data?.detail ||
-        err.response?.data?.non_field_errors?.[0] ||
-        err.message ||
-        'Login failed. Please try again.';
-      setError(msg);
+      console.error(err);
+      const data = err.response?.data;
+      setError(
+        data?.detail ||
+          data?.error ||
+          (Array.isArray(data?.non_field_errors) ? data.non_field_errors[0] : null) ||
+          'Invalid email or password'
+      );
     } finally {
-      setAuthLoading(false);
+      setLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-white flex items-center justify-center p-6">
-      <div className="max-w-sm w-full space-y-8 text-center">
-        <h2 className="text-3xl font-bold">Welcome Back</h2>
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="max-w-sm w-full space-y-8"
+      >
+        <div className="text-center">
+          <h2 className="text-3xl font-bold text-slate-900">Welcome Back</h2>
+          <p className="text-sm text-slate-500 mt-2">Sign in with your email</p>
+        </div>
+
         <form onSubmit={handleLogin} className="space-y-4">
-          <input
-            type="email"
-            placeholder="Email"
-            required
-            className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            required
-            className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          {error && <p className="text-red-500 text-xs">{error}</p>}
+          <div className="relative">
+            <Mail className="absolute left-3 top-3.5 text-slate-400" size={18} />
+            <input
+              type="email"
+              required
+              placeholder="Email"
+              className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+          <div className="relative">
+            <Lock className="absolute left-3 top-3.5 text-slate-400" size={18} />
+            <input
+              type="password"
+              required
+              placeholder="Password"
+              className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+
+          {error && (
+            <div className="flex items-center gap-2 text-rose-600 text-xs">
+              <AlertCircle size={14} />
+              {error}
+            </div>
+          )}
+
           <button
             type="submit"
-            disabled={authLoading}
-            className="w-full flex items-center justify-center gap-2 bg-slate-900 text-white py-3 rounded-xl font-medium hover:bg-slate-800 transition-all disabled:opacity-50"
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2 bg-slate-900 text-white py-3 rounded-xl font-medium hover:bg-slate-800 disabled:opacity-50"
           >
-            {authLoading ? (
-              <Loader2 className="animate-spin" size={18} />
-            ) : (
-              <>
-                <LogIn size={18} /> Login
-              </>
-            )}
+            {loading ? <Loader2 className="animate-spin" size={18} /> : <><LogIn size={18} /> Login</>}
           </button>
         </form>
-      </div>
+
+        <p className="text-center text-sm text-slate-500">
+          No account?{' '}
+          <Link to="/register" className="text-blue-600 font-medium hover:underline">
+            Register
+          </Link>
+        </p>
+      </motion.div>
     </div>
   );
 };

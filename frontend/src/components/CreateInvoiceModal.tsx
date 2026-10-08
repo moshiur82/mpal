@@ -1,16 +1,16 @@
 import { useState, type FormEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, PlusCircle, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { X, FileText, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import axios from 'axios';
 
-interface PaymentLinkModalProps {
+interface CreateInvoiceModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (data: any) => void;
+  onSuccess: () => void;
 }
 
-const PaymentLinkModal = ({ isOpen, onClose, onSuccess }: PaymentLinkModalProps) => {
-  const [productName, setProductName] = useState('');
+const CreateInvoiceModal = ({ isOpen, onClose, onSuccess }: CreateInvoiceModalProps) => {
+  const [clientEmail, setClientEmail] = useState('');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
@@ -18,7 +18,7 @@ const PaymentLinkModal = ({ isOpen, onClose, onSuccess }: PaymentLinkModalProps)
   const [success, setSuccess] = useState(false);
 
   const resetForm = () => {
-    setProductName('');
+    setClientEmail('');
     setAmount('');
     setDescription('');
     setError(null);
@@ -32,14 +32,13 @@ const PaymentLinkModal = ({ isOpen, onClose, onSuccess }: PaymentLinkModalProps)
 
     try {
       const token = localStorage.getItem('access_token');
-      if (!token) throw new Error('Session expired. Please login again.');
-
-      const response = await axios.post(
-        'http://127.0.0.1:8000/api/payment-links/',
+      await axios.post(
+        'http://127.0.0.1:8000/api/invoices/',
         {
-          product_name: productName,
+          client_email: clientEmail,
           amount: parseFloat(amount),
           description: description,
+          status: 'PENDING',
         },
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -48,21 +47,20 @@ const PaymentLinkModal = ({ isOpen, onClose, onSuccess }: PaymentLinkModalProps)
 
       setSuccess(true);
       setTimeout(() => {
-        onSuccess(response.data);
         resetForm();
+        onSuccess();
         onClose();
       }, 1000);
     } catch (err: any) {
-      console.error('Link creation error:', err);
+      console.error('Invoice creation error:', err);
       const data = err.response?.data;
       const msg =
-        data?.product_name?.[0] ||
+        data?.error ||
+        data?.client_email?.[0] ||
         data?.amount?.[0] ||
         data?.detail ||
-        data?.error ||
-        err.message ||
-        'Failed to create payment link.';
-      setError(msg);
+        'Failed to create invoice.';
+      setError(typeof msg === 'string' ? msg : 'Failed to create invoice.');
     } finally {
       setLoading(false);
     }
@@ -79,7 +77,7 @@ const PaymentLinkModal = ({ isOpen, onClose, onSuccess }: PaymentLinkModalProps)
             className="bg-white w-full max-w-md rounded-[32px] shadow-2xl overflow-hidden border border-slate-100"
           >
             <div className="px-8 py-6 flex items-center justify-between border-b border-slate-50">
-              <h2 className="text-xl font-semibold text-slate-900">Create Payment Link</h2>
+              <h2 className="text-xl font-semibold text-slate-900">Create Invoice</h2>
               <button
                 type="button"
                 onClick={() => {
@@ -95,15 +93,15 @@ const PaymentLinkModal = ({ isOpen, onClose, onSuccess }: PaymentLinkModalProps)
             <form onSubmit={handleSubmit} className="p-8 space-y-5">
               <div className="space-y-2">
                 <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Product/Service Name
+                  Client Email
                 </label>
                 <input
-                  type="text"
+                  type="email"
                   required
-                  placeholder="e.g. UI/UX Design Service"
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all"
-                  value={productName}
-                  onChange={(e) => setProductName(e.target.value)}
+                  placeholder="client@example.com"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  value={clientEmail}
+                  onChange={(e) => setClientEmail(e.target.value)}
                 />
               </div>
 
@@ -117,7 +115,7 @@ const PaymentLinkModal = ({ isOpen, onClose, onSuccess }: PaymentLinkModalProps)
                   min="0.01"
                   required
                   placeholder="0.00"
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                 />
@@ -125,12 +123,12 @@ const PaymentLinkModal = ({ isOpen, onClose, onSuccess }: PaymentLinkModalProps)
 
               <div className="space-y-2">
                 <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Description (Optional)
+                  Description
                 </label>
-                <input
-                  type="text"
-                  placeholder="Describe the service"
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all"
+                <textarea
+                  rows={3}
+                  placeholder="What is this for?"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                 />
@@ -146,20 +144,20 @@ const PaymentLinkModal = ({ isOpen, onClose, onSuccess }: PaymentLinkModalProps)
               {success && (
                 <div className="flex items-center gap-2 p-3 bg-emerald-50 text-emerald-600 rounded-xl text-xs">
                   <CheckCircle2 size={14} />
-                  <span>Link created successfully!</span>
+                  <span>Invoice created successfully!</span>
                 </div>
               )}
 
               <button
                 type="submit"
                 disabled={loading || success}
-                className="w-full flex items-center justify-center gap-2 bg-slate-900 text-white py-4 rounded-2xl text-sm font-semibold hover:bg-slate-800 transition-all active:scale-[0.98] disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 bg-slate-900 text-white py-4 rounded-2xl text-sm font-semibold hover:bg-slate-800 disabled:opacity-50"
               >
                 {loading ? (
                   <Loader2 className="animate-spin" size={18} />
                 ) : (
                   <>
-                    <PlusCircle size={18} /> Create Link
+                    <FileText size={18} /> Create Invoice
                   </>
                 )}
               </button>
@@ -171,4 +169,4 @@ const PaymentLinkModal = ({ isOpen, onClose, onSuccess }: PaymentLinkModalProps)
   );
 };
 
-export default PaymentLinkModal;
+export default CreateInvoiceModal;

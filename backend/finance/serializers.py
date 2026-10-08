@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Transaction, PaymentLink, Invoice
+from .models import Transaction, PaymentLink, Invoice, Subscription # Subscription যোগ করুন
 
 
 class TransactionSerializer(serializers.ModelSerializer):
@@ -21,3 +22,16 @@ class InvoiceSerializer(serializers.ModelSerializer):
         model = Invoice
         fields = '__all__'
         read_only_fields = ['invoice_number', 'merchant', 'created_at']
+
+class SubscriptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Subscription
+        fields = '__all__'
+        read_only_fields = [
+            'user',
+            'status',
+            'start_date',
+            'next_billing_date',
+            'created_at',
+            'updated_at'
+        ]

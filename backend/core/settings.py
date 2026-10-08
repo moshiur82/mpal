@@ -50,7 +50,7 @@ INSTALLED_APPS = [
     'corsheaders',
 
     # Local apps
-    'users',  # <--- এটি যোগ করুন
+    'users.apps.UsersConfig',   # ✅ 'users' এর বদলে এটি
 ]
 
 MIDDLEWARE = [

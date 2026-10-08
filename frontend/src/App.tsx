@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import DashboardLayout from './layouts/DashboardLayout';
 import LoginView from './pages/LoginView';
@@ -8,9 +8,13 @@ import Transactions from './pages/Transactions';
 import Profile from './pages/Profile';
 import Invoices from './pages/Invoices';
 import BusinessDashboard from './pages/BusinessDashboard';
-
-const ProtectedRoute = () => {
-  const { isAuthenticated, isLoading } = useAuth();
+import SubscriptionPage from './pages/SubscriptionPage';
+import LandingPage from './pages/LandingPage';
+import Register from './pages/Register';
+import Verify from './pages/Verify';
+import PaymentLinks from './pages/PaymentLinks';
+function AppRoutes() {
+  const { isAuthenticated, isLoading, login, logout } = useAuth();
 
   if (isLoading) {
     return (
@@ -20,29 +24,71 @@ const ProtectedRoute = () => {
     );
   }
 
-  return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />;
-};
+  return (
+    <Routes>
+      {/* Public */}
+      <Route
+        path="/"
+        element={
+          !isAuthenticated ? <LandingPage /> : <Navigate to="/dashboard" replace />
+        }
+      />
+      <Route
+        path="/login"
+        element={
+          !isAuthenticated ? (
+            <LoginView onLogin={login} />
+          ) : (
+            <Navigate to="/dashboard" replace />
+          )
+        }
+      />
+      <Route
+        path="/register"
+        element={
+          !isAuthenticated ? <Register /> : <Navigate to="/dashboard" replace />
+        }
+      />
+      {/* Verify needs token — allow if authenticated, else login */}
+      <Route
+        path="/verify"
+        element={
+          isAuthenticated ? <Verify /> : <Navigate to="/login" replace />
+        }
+      />
+
+      {/* Protected dashboard */}
+      <Route
+        path="/dashboard"
+        element={
+          isAuthenticated ? (
+            <DashboardLayout onLogout={logout} />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      >
+        <Route index element={<Overview />} />
+        <Route path="wallet" element={<Wallet />} />
+        <Route path="payments" element={<Transactions />} />
+        <Route path="transactions" element={<Transactions />} />
+        <Route path="business" element={<BusinessDashboard />} />
+        <Route path="invoices" element={<Invoices />} />
+        <Route path="subscription" element={<SubscriptionPage />} />
+        <Route path="profile" element={<Profile />} />
+        <Route path="payment-links" element={<PaymentLinks />} />
+      </Route>
+
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
 
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
-          <Route path="/login" element={<LoginView />} />
-
-          <Route element={<ProtectedRoute />}>
-            <Route path="/" element={<DashboardLayout />}>
-              <Route index element={<Overview />} />
-              <Route path="wallet" element={<Wallet />} />
-              <Route path="transactions" element={<Transactions />} />
-              <Route path="profile" element={<Profile />} />
-              <Route path="business" element={<BusinessDashboard />} />
-              <Route path="invoices" element={<Invoices />} />
-            </Route>
-          </Route>
-
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <AppRoutes />
       </AuthProvider>
     </BrowserRouter>
   );

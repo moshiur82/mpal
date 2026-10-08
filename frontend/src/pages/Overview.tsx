@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowUpRight, ArrowDownRight, TrendingUp, Wallet as WalletIcon, CreditCard } from 'lucide-react';
+import {
+  ArrowUpRight,
+  ArrowDownRight,
+  TrendingUp,
+  Wallet as WalletIcon,
+  CreditCard,
+  AlertCircle,
+  ShieldCheck,
+} from 'lucide-react';
 import api from '../api/axios';
 
 interface WalletData {
@@ -14,6 +22,7 @@ interface Transaction {
   description: string;
   transaction_type: 'DEPOSIT' | 'WITHDRAW' | 'TRANSFER';
   created_at: string;
+  is_fraud?: boolean;
 }
 
 const Overview = () => {
@@ -30,7 +39,9 @@ const Overview = () => {
           api.get('/transactions/'),
         ]);
         setWallet(walletRes.data);
-        setTransactions(txRes.data.slice(0, 5));
+        // সর্বশেষ ৫টা
+        const list = Array.isArray(txRes.data) ? txRes.data : txRes.data?.results || [];
+        setTransactions(list.slice(0, 5));
       } catch (err: any) {
         console.error('Overview fetch error:', err);
         setError(err.response?.data?.detail || 'Failed to load data');
@@ -40,6 +51,9 @@ const Overview = () => {
     };
     fetchData();
   }, []);
+
+  const fraudCount = transactions.filter((t) => t.is_fraud).length;
+  const hasFraud = fraudCount > 0;
 
   if (loading) {
     return (
@@ -56,10 +70,34 @@ const Overview = () => {
         <p className="text-sm text-slate-500">Welcome back! Here's your financial summary.</p>
       </div>
 
+      {/* API error */}
       {error && (
         <div className="p-4 bg-red-50 text-red-600 rounded-xl text-sm border border-red-100">
           {error}
         </div>
+      )}
+
+      {/* AI Security Status */}
+      {hasFraud ? (
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="bg-rose-50 border border-rose-100 p-4 rounded-2xl flex items-center gap-3 text-rose-600"
+        >
+          <AlertCircle size={20} />
+          <span className="text-sm font-medium">
+            Security Alert: {fraudCount} suspicious transaction(s) detected by AI!
+          </span>
+        </motion.div>
+      ) : (
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl flex items-center gap-3 text-emerald-700"
+        >
+          <ShieldCheck size={20} />
+          <span className="text-sm font-medium">AI Security Status: All clear — no fraud detected.</span>
+        </motion.div>
       )}
 
       {/* Stats Grid */}
@@ -106,8 +144,10 @@ const Overview = () => {
               <CreditCard size={20} className="text-purple-600" />
             </div>
           </div>
-          <p className="text-sm text-slate-500 mb-1">Account Status</p>
-          <h3 className="text-2xl font-semibold text-slate-900">Active</h3>
+          <p className="text-sm text-slate-500 mb-1">AI Risk Score</p>
+          <h3 className={`text-2xl font-semibold ${hasFraud ? 'text-rose-600' : 'text-slate-900'}`}>
+            {hasFraud ? 'High' : 'Low'}
+          </h3>
         </motion.div>
       </div>
 
@@ -121,7 +161,10 @@ const Overview = () => {
             <div className="p-12 text-center text-slate-500">No transactions yet.</div>
           ) : (
             transactions.map((t) => (
-              <div key={t.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
+              <div
+                key={t.id}
+                className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
+              >
                 <div className="flex items-center gap-3">
                   <div
                     className={`p-2 rounded-lg ${
@@ -137,9 +180,16 @@ const Overview = () => {
                     )}
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-slate-900">
-                      {t.description || 'Transaction'}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-slate-900">
+                        {t.description || 'Transaction'}
+                      </p>
+                      {t.is_fraud && (
+                        <span className="text-[10px] font-semibold uppercase bg-rose-100 text-rose-600 px-2 py-0.5 rounded-full">
+                          Fraud
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-slate-500">
                       {new Date(t.created_at).toLocaleDateString()}
                     </p>
